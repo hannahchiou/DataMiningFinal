@@ -1,29 +1,31 @@
 # 15.062 Final Project
 
-##### data cleaning, merging #####
+##### Data Cleaning and Merging #####
+# Reading into the stocks dataset
 stocks <- read.csv("Desktop/Stocks.csv")
 head(stocks)
 dim(stocks)
-# trim to 2022-08-11 ✅
+# trim to 2022-08-11 in order to create more consistent data set
 which(stocks$Date=="2022-08-11")
 stocks.2 <- stocks[1:10744,]
 # split up based on diff companies
 
+# Reading into the factors dataset (including the factors from the Fama French models)
 factors <- read.csv("Desktop/Factors.csv")
 head(factors)
 dim(factors)
 which(factors$Date=="2022-08-11")
 factors.2 <- factors[5:10748,]
 
+# Creating a dataset that included both datasets
 final <- cbind(stocks.2,factors.2)
 head(final)
 
-# Boeing (BA)
-
+# Narrowing the dataset to only Boeing (BA)
 small.final <- final[,c("Date","BA","BAC","CVS","F","KO","Mkt.RF","SMB",
                         "HML","RMW","CMA","RF","MOM")]
 
-##### exploratory #####
+##### Exploratory Data Analysis #####
 install.packages("ggplot2")
 library("ggplot2")
 install.packages("ggcorrplot")
@@ -34,6 +36,7 @@ BA.cor <- cor(y=small.final$BA,x=small.final[,c("Mkt.RF","SMB",
 BA.cor
 round(BA.cor,5)[1:6]
 
+# Observing correlations between Boeing stock asset price and the six different factors
 ggcorrplot(BA.cor)
 par(mfrow=c(2,3))
 plot(x=small.final$Mkt.RF,y=small.final$BA,xlab="Equity risk premium",
@@ -56,8 +59,7 @@ plot(x=small.final$MOM,y=small.final$BA,xlab="MOM (momentum)",
      pch = 16)
 
 
-##### creating linear regression models #####
-# maybe just find summaries for training datasets
+##### Creating Linear Regression Models #####
 
 CAPM.BA <- lm(BA~(Mkt.RF),data=final)
 summary(CAPM.BA)
@@ -81,7 +83,7 @@ carhart.BA <- lm(BA~(Mkt.RF)+SMB+HML+MOM,data=final)
 summary(carhart.BA)
 
 
-#### train & test ####
+#### Train and Test ####
 BA <- small.final[,c("BA","Mkt.RF","SMB",
                      "HML","RMW","CMA","RF","MOM")]
 
@@ -125,9 +127,9 @@ sqrt(mean((p.BA - train.BA$BA)^2))
 AIC(carhart.BA)
 BIC(carhart.BA )
 
-#### feature selection ####
+#### Feature Selection ####
 
-###### lasso regression ######
+###### Lasso Regression ######
 library(glmnet)
 library(usdm)
 
@@ -147,7 +149,7 @@ best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
 coef(best_model,s=cv_model$lambda.min)
 # best model includes all predictors
 
-###### random forest feature importance (bagging) ######
+###### Random Forest Feature Importance (Bagging) ######
 library(randomForest)
 install.packages("varImp")
 library(varImp)
@@ -160,18 +162,18 @@ imp_scores <- importance(rf_model,importance=TRUE)
 imp_scores
 imp_scores[,2]
 
-#### model averaging ####
-###### model stacking ######
+#### Model Averaging ####
+###### Model Stacking ######
 library("caret")
 stacked <- stack(list(CAPM.BA,ff_three_factor.BA,ff_five_factor.BA,carhart.BA))
 
-#### neural networks ####
+#### Neural Networks ####
 library("neuralnet")
 set.seed(1)
 nn <- neuralnet(BA~Mkt.RF+SMB+HML+RMW+CMA+MOM,data=train.BA,linear.output=F,hidden=1)
 # justification for choosing 1 layer: less complex data, not as many layers
 
-#### k fold cross validation (with k=10) ####
+#### K fold Cross Validation (with k=10) ####
 # creating folds
 n <- nrow(BA)
 K <- 10 # since we are performing 10-fold CV
@@ -251,7 +253,7 @@ for(i in 1:K) {
 round(CV.score.lasso,6)
 # 0.000318
 
-# Random forest chosen features
+# Random Forest Chosen Features
 CV.score.rf <- 0 
 for(i in 1:K) {
   # fit on data except ith fold
@@ -264,7 +266,7 @@ for(i in 1:K) {
 round(CV.score.rf,6)
 # 0.000287
 
-# Neural network 
+# Neural Network 
 CV.score.nn <- 0 
 for(i in 1:K) {
   # fit on data except ith fold
